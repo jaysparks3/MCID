@@ -1,0 +1,1123 @@
+---
+title: "MCID using ROC curve method"
+author: "Jay Kim"
+date: "2023-10-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning=FALSE)
+```
+
+
+# Import Data
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(janitor)
+
+Hips_9_21_23 <- read_csv ("G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/Hips_9_21_23_raw.csv" )
+
+Hips_9_21_23_raw2 <- Hips_9_21_23 %>% 
+    janitor::clean_names() %>% 
+    filter(!is.na(input_number )) %>% 
+     filter(!is.na(patient_id_on_django)) %>% 
+    mutate(new_patient_id2 = ifelse(new_patient_id == "RL00589" & age == 71 , "RL00588", new_patient_id)) %>%    #fixed incorrect ids
+    mutate(new_patient_id = ifelse(patient_id_on_django == "VOKE000001" & date_of_initial_application == "2022-05-02", "RL00589", new_patient_id2)) %>%  mutate(gender = toupper(gender)) %>% 
+    mutate(new_patient_id = ifelse( new_patient_id == "RL00590", NA, new_patient_id)) # gender mixed but same id
+
+# generate na ids
+## replace with input number for na ids
+Hips_9_21_23_raw <- Hips_9_21_23_raw2 %>%
+  mutate(new_patient_id= ifelse(is.na(new_patient_id), input_number, new_patient_id)) %>% arrange(new_patient_id)
+
+Hips_9_21_23_raw[Hips_9_21_23_raw$new_patient_id=="2868",]
+   
+```
+
+### Count NA per subsection & sum of each subitems in WOMAC / QOLS
+
+- sum each submission by interval
+- count nas for each submission by id and interval
+- replaced na ids using input number
+- added demo infor
+- created column for number of application by date and side
+- arranged recent application date by ids
+- create total womac by id, interval, and number of applications
+
+```{r coding na and rowsums for womac}
+
+### womac
+hips_raw_double <-  Hips_9_21_23_raw %>%  
+    mutate_at(c(18:61, 64:107,108:153), as.double)  
+
+# split submissions - womac
+a1 <- hips_raw_double %>% select(new_patient_id, date_of_initial_application,18:22) %>% 
+    mutate(womac = rep("womac_pain_0"), interval = rep(0), scale = rep("womac")) %>% 
+    mutate(sub_na_n =rowSums(is.na(across(3:7))))  %>% 
+    mutate(sub_sums = apply(.[3:7],1,sum, na.rm=T)) %>% 
+    select(1,2,womac, interval, scale, sub_na_n, sub_sums) 
+a2 <- hips_raw_double %>% select(new_patient_id, date_of_initial_application,64:68)%>% 
+    mutate(womac = rep("womac_pain_30"), interval = rep(30), scale = rep("womac")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:7))))  %>% 
+    mutate(sub_sums = apply(.[3:7],1,sum, na.rm=T)) %>% 
+    select(1,2,womac, interval, scale, sub_na_n, sub_sums) 
+a3  <- hips_raw_double %>% select(new_patient_id, date_of_initial_application,110:114)%>% 
+    mutate(womac = rep("womac_pain_90"), interval = rep(90), scale = rep("womac")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:7))))  %>% 
+    mutate(sub_sums = apply(.[3:7],1,sum, na.rm=T)) %>% 
+    select(1,2,womac, interval, scale, sub_na_n, sub_sums) 
+
+b1 <- hips_raw_double %>% select(new_patient_id, date_of_initial_application,24:25)%>% 
+    mutate(womac = rep("womac_stiff_0"), interval = rep(0), scale = rep("womac")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:4))))  %>% 
+    mutate(sub_sums = apply(.[3:4],1,sum, na.rm=T)) %>% 
+    select(1,2,womac, interval, scale, sub_na_n, sub_sums) 
+b2 <- hips_raw_double %>% select(new_patient_id, date_of_initial_application,70:71)%>% 
+    mutate(womac = rep("womac_stiff_30"), interval = rep(30), scale = rep("womac")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:4))))  %>% 
+    mutate(sub_sums = apply(.[3:4],1,sum, na.rm=T)) %>% 
+    select(1,2,womac, interval, scale, sub_na_n, sub_sums) 
+b3  <- hips_raw_double %>% select(new_patient_id, date_of_initial_application,116:117)%>% 
+    mutate(womac = rep("womac_stiff_90"), interval = rep(90), scale = rep("womac")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:4))))  %>% 
+    mutate(sub_sums = apply(.[3:4],1,sum, na.rm=T)) %>% 
+    select(1,2,womac, interval, scale, sub_na_n, sub_sums) 
+
+c1 <- hips_raw_double %>% select(new_patient_id, date_of_initial_application,27:42)%>% 
+    mutate(womac = rep("womac_func_0"), interval = rep(0), scale = rep("womac")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:18))))  %>% 
+    mutate(sub_sums = apply(.[3:18],1,sum, na.rm=T)) %>% 
+    select(1,2,womac, interval, scale, sub_na_n, sub_sums) 
+c2 <- hips_raw_double %>% select(new_patient_id, date_of_initial_application,73:88)%>% 
+    mutate(womac = rep("womac_func_30"), interval = rep(30), scale = rep("womac")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:18))))  %>% 
+    mutate(sub_sums = apply(.[3:18],1,sum, na.rm=T)) %>% 
+     select(1,2,womac, interval, scale, sub_na_n, sub_sums) 
+c3  <- hips_raw_double %>% select(new_patient_id, date_of_initial_application,119:134)%>% 
+    mutate(womac = rep("womac_func_90"), interval = rep(90), scale = rep("womac")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:18))))  %>% 
+    mutate(sub_sums = apply(.[3:18],1,sum, na.rm=T)) %>% 
+    select(1,2,womac, interval, scale, sub_na_n, sub_sums) 
+
+### combnine all womac scale & count nas
+hips_womac_items <- rbind(a1,a2,a3,b1,b2,b3,c1,c2,c3) %>% 
+    arrange(new_patient_id, date_of_initial_application) #%>% 
+    # group_by(new_patient_id, interval,scale) %>% 
+    # mutate(womac_interval_na_n = sum(sub_na_n))
+
+### added demographics / #new_patient_id
+demo <-  Hips_9_21_23_raw %>%  mutate(bmi = as.numeric(bmi))  %>%  
+    select(new_patient_id,side,date_of_initial_application, gender, age,bmi, contains("nprs")) %>% 
+    unique() %>% 
+    group_by(new_patient_id) %>% 
+    mutate(app_n  = row_number()) %>% ungroup() %>% 
+    group_by(new_patient_id, side) %>% mutate(app_side_n  = row_number()) %>% 
+    mutate(nprs_1 = nprs_initial, nprs_2 = nprs_day_90) # 98
+
+hips_womac_items2 <- hips_womac_items %>% 
+    left_join(demo, by = c("new_patient_id","date_of_initial_application")) %>% 
+    group_by(new_patient_id, interval,app_n, app_side_n) %>%
+    mutate(womac_interval_na_n = sum(sub_na_n)) %>% 
+    relocate(womac_interval_na_n, .after = sub_na_n) %>% 
+    ungroup() %>% 
+    group_by(new_patient_id,side, app_n, interval) %>% 
+    mutate(total_womac = sum(sub_sums)) %>% 
+    relocate(total_womac, .after = sub_sums) %>% 
+    mutate(sub_item = str_sub(womac,7, 10 )) %>% 
+    mutate(age_g = cut(age, breaks = c( 64,70, 81,93))) %>% 
+    mutate(bmi_g = cut(bmi, breaks = c(20,24.9,29.9,39) )) # based on STAT 882/20
+
+# colSums(is.na(hips_womac_items2))
+length(unique(hips_womac_items2$new_patient_id)) # unique 73 ids
+
+hips_womac_items3 <- hips_womac_items2 %>% unique()
+
+# saved
+# write.csv(hips_womac_items2, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_womac_items2_cleaned_master.csv", row.names = FALSE)
+
+
+###################
+## qols
+
+hips_qols_raw <-  Hips_9_21_23_raw %>%  
+    mutate_at(c(45:60,91:106,137: 152 ), as.double)  %>% select(new_patient_id, date_of_initial_application,
+                                                                45:60,91:106,137: 152 )
+
+hips_qols_raw_clean <- cbind(Hips_9_21_23_raw[,c("new_patient_id","date_of_initial_application")], hips_qols_raw)
+
+q1  <- hips_qols_raw_clean %>% select(1,2,5:20) %>% 
+    mutate(qols = rep("qols_0"), interval = rep(0), scale = rep("qols")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:18))))  %>% 
+    mutate(sub_sums = apply(.[3:18],1,sum, na.rm=T)) %>% 
+    select(1,2,qols, interval, scale, sub_na_n, sub_sums) 
+q2  <- hips_qols_raw_clean %>% select(1,2,21:36) %>% 
+    mutate(qols = rep("qols_30"), interval = rep(30), scale = rep("qols")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:18))))  %>% 
+    mutate(sub_sums = apply(.[3:18],1,sum, na.rm=T)) %>% 
+    select(1,2,qols, interval, scale, sub_na_n, sub_sums) 
+q3  <- hips_qols_raw_clean %>% select(1,2,37:52) %>% 
+    mutate(qols = rep("qols_90"), interval = rep(90), scale = rep("qols")) %>% 
+     mutate(sub_na_n =rowSums(is.na(across(3:18))))  %>% 
+    mutate(sub_sums = apply(.[3:18],1,sum, na.rm=T)) %>% 
+    select(1,2,qols, interval, scale, sub_na_n, sub_sums) 
+
+qols_all <- rbind(q1,q2,q3) %>% arrange(new_patient_id)
+qols_all_wide <- qols_all %>% filter(sub_na_n < 4) %>% 
+    select(1,2,3,6,7) %>% 
+    pivot_wider(names_from = qols, values_from = c(sub_na_n, sub_sums))
+    
+```
+
+
+
+
+
+
+###  average womac score
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+my_womac <- read_csv("G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_womac_items2_cleaned_master.csv")
+
+# mean diff by nprs1
+ave_womac <- my_womac  %>% group_by(new_patient_id,side,interval, scale) %>% 
+    summarise(ave.womac.raw = mean(total_womac) )
+ 
+# not included na >=4
+ave_womac_not_na <- my_womac  %>% filter(womac_interval_na_n < 4) %>% # filtered by na count (< 4)
+    group_by(new_patient_id,side,interval, scale) %>% 
+    summarise(ave.womac.raw = mean(total_womac) )
+
+# average total womac score by id and side
+ave_womac
+ave_womac_not_na
+
+# comparision by interval
+table(interval=ave_womac$interval)
+table(interval=ave_womac_not_na$interval)
+
+length(unique(ave_womac_not_na$new_patient_id))
+
+
+```
+
+# Included patients
+
+- total ?? patients were screened and ?? were included
+
+     - removed if the patiens recoded more than 4 nas for womac items by interval
+     - removed if the patiens were not in interval 0 and 90
+
+
+```{r sample}
+
+interval_0_ids <- ave_womac_not_na %>% filter(interval == 0) %>% 
+    select(new_patient_id, side) %>% unique() # 76 including dups
+
+my_sample <-  my_womac %>% 
+      right_join(interval_0_ids[,c(2,3)], by = c("new_patient_id","side" ))
+table(my_sample$interval) # same ids 
+length(unique(my_sample$new_patient_id)) # 69 unique ids
+
+
+### old code
+
+# hips_cleaned5 <- hips_cleaned4_ave %>% filter(application_number_side == 1) %>% 
+#     #filter(!duplicated(new_id_all)) %>% 
+#     select(new_id_all, contains("nprs"), contains("womac")) %>% 
+#        #  mutate(diff_womac =   total_womac_day_90 -  total_womac_initial) #%>% 
+#     mutate(diff_womac =   ave_womac2 -  ave_womac1)  
+#      #filter(!is.na(nprs_1)) # not working using diff nprs
+
+
+```
+
+# average percent changes in scores NPRS, total WOMAC (pain, sitffness, functinality and qols)
+
+
+```{r convert wide format to compute average chagnes on scales}
+# used all paitents
+
+twomac_only <- my_sample %>% select(new_patient_id,  date_of_initial_application, total_womac, interval,
+                                    contains("age"), contains("bmi"),contains("gender"),side, app_n, app_side_n) %>% 
+      unique() %>% 
+     pivot_wider(names_from = interval, names_prefix = "TW_D_", values_from = total_womac) %>%  # 94
+    mutate(bmi_g = ifelse(is.na(bmi_g), "Missing", bmi_g))
+# nprs
+nprs_only <- my_sample %>% 
+    select(new_patient_id,  date_of_initial_application, nprs_initial, nprs_day_30,nprs_day_90 ) %>% 
+      unique()  #94
+
+pain <- c("womac_pain_0","womac_pain_30","womac_pain_90")
+pain_only <- my_sample %>% filter(womac %in% pain) %>% 
+    select(new_patient_id,  date_of_initial_application,womac, sub_sums) %>% 
+      unique() %>% 
+     pivot_wider(names_from = womac,  values_from = sub_sums) # 94
+
+stiff <- c("womac_stiff_0","womac_stiff_30","womac_stiff_90")
+stiff_only <- my_sample %>% filter(womac %in% stiff) %>% 
+    select(new_patient_id, date_of_initial_application,womac, sub_sums) %>% 
+      unique() %>% 
+     pivot_wider(names_from = womac,  values_from = sub_sums) # 94
+
+func <- c("womac_func_0","womac_func_30","womac_func_90")
+func_only <- my_sample %>% filter(womac %in% func) %>% 
+    select(new_patient_id, date_of_initial_application,womac, sub_sums) %>% 
+      unique() %>% 
+     pivot_wider(names_from = womac,  values_from = sub_sums) # 94
+
+
+
+qols_only <- qols_all_wide[,c(1,2,6:8)]  
+
+
+hips_wide_df_master <- merge(twomac_only, nprs_only, by = c("new_patient_id","date_of_initial_application"), all =T) %>% 
+    left_join(pain_only, by = c("new_patient_id","date_of_initial_application")) %>% 
+    left_join(stiff_only, by = c("new_patient_id","date_of_initial_application")) %>% 
+    left_join(func_only, by = c("new_patient_id","date_of_initial_application")) %>% 
+    left_join(qols_only, by = c("new_patient_id","date_of_initial_application")) %>% 
+    mutate(bmi_g = ifelse(is.na(bmi_g), "Missing", bmi_g)) %>% 
+    mutate_at(c(14:16), as.double)   # nprs as double
+
+
+
+hips_wide_df_master_cal <- hips_wide_df_master %>% 
+    mutate(twa =  TW_D_0 - TW_D_30) %>% # positive better outcome
+    mutate(twb =   TW_D_30 - TW_D_90 )  %>% 
+    mutate(twc =  TW_D_0 - TW_D_90)  %>% 
+    mutate(wpa = womac_pain_0 - womac_pain_30) %>% 
+    mutate(wpb = womac_pain_30 - womac_pain_90) %>% 
+    mutate(wpc = womac_pain_0 - womac_pain_90) %>% 
+    mutate(wsa = womac_stiff_0 - womac_stiff_30)  %>% 
+    mutate(wsb = womac_stiff_30 - womac_stiff_90) %>% 
+    mutate(wsc = womac_stiff_0 - womac_stiff_90) %>% 
+    mutate(wfa = womac_func_0 - womac_func_30) %>% 
+    mutate(wfb = womac_func_30 - womac_func_90) %>% 
+    mutate(wfc = womac_func_0 - womac_func_90) %>% 
+    mutate(q1a = sub_sums_qols_0 - sub_sums_qols_30) %>% 
+    mutate(q2b = sub_sums_qols_30 - sub_sums_qols_90)  %>% 
+    mutate(q3c = sub_sums_qols_0 - sub_sums_qols_90) %>% 
+    mutate(tw1 =  (TW_D_0 - TW_D_30)/ TW_D_0 ) %>% # positive better outcome
+    mutate(tw2 =   (TW_D_30 - TW_D_90)/ TW_D_30 )  %>% 
+    mutate(tw3 =  (TW_D_0 - TW_D_90)/ TW_D_0 )  %>% 
+    mutate(wp1 = (womac_pain_0 - womac_pain_30) /womac_pain_0) %>% 
+    mutate(wp2 = (womac_pain_30 - womac_pain_90) /womac_pain_30) %>% 
+    mutate(wp3 = (womac_pain_0 - womac_pain_90) /womac_pain_0) %>% 
+    mutate(ws1 = (womac_stiff_0 - womac_stiff_30) / womac_stiff_0)  %>% 
+    mutate(ws2 = (womac_stiff_30 - womac_stiff_90) / womac_stiff_30) %>% 
+    mutate(ws3 = (womac_stiff_0 - womac_stiff_90) / womac_stiff_0) %>% 
+    mutate(wf1 = (womac_func_0 - womac_func_30) / womac_func_0) %>% 
+    mutate(wf2 = (womac_func_30 - womac_func_90) / womac_func_30) %>% 
+    mutate(wf3 = (womac_func_0 - womac_func_90) / womac_func_0) %>% 
+    mutate(q1 = (sub_sums_qols_0 - sub_sums_qols_30) / sub_sums_qols_0) %>% 
+    mutate(q2 = (sub_sums_qols_30 - sub_sums_qols_90) / sub_sums_qols_0)  %>% 
+    mutate(q3 = (sub_sums_qols_0 - sub_sums_qols_90) / sub_sums_qols_0)   
+
+#colSums(is.na(hips_wide_df_master))
+
+ 
+hips_wide_df_master_cal2 <- hips_wide_df_master_cal %>% arrange(new_patient_id, side) %>% 
+    group_by(new_patient_id, side) %>% mutate(app_side_n2 = row_number()) %>% 
+    relocate(app_side_n2, .after = app_side_n) %>% group_by(new_patient_id) %>% 
+    mutate(app_n2 = row_number()) %>% 
+    relocate(app_n2, .after = app_n)
+
+# save hips data with total scores onlu
+write.csv(hips_wide_df_master_cal2, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_wide_df_master.csv", row.names = FALSE)
+
+```
+### tables: Average diff pain scale by intervals - positive valeus are the better outcomes
+
+```{r}
+  hips_wide_df_master_cal2  %>% 
+    summarise(v1 = mean(twa, na.rm=T), v2 =mean(twb, na.rm=T), v3 = mean(twc, na.rm=T),
+              v4=mean(wpa, na.rm=T),v5=mean(wpb, na.rm=T),v6=mean(wpc, na.rm=T),
+             v7= mean(wsa, na.rm=T),v8=mean(wsb, na.rm=T),v9=mean(wsc, na.rm=T),
+              v10=mean(wfa, na.rm=T),v11=mean(wfb, na.rm=T),v12=mean(wfc, na.rm=T),
+             v13= mean(q1a, na.rm=T),v14=mean(q2b, na.rm=T),v15=mean(q3c, na.rm=T))
+
+tab1 <- hips_wide_df_master_cal2  %>%  pivot_longer(c(13:45), names_to = "scales", values_to = "diff_scores") %>% 
+    group_by(scales) %>% summarise(mean_diff_scores = mean(diff_scores, na.rm=T), N =n())
+
+
+tab1
+
+write.csv(tab1 , "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_mean_diff_by_intervals.csv")
+
+
+```
+
+### Tukey's test using proportion change based on interval
+
+```{r}
+
+long_pc <-   hips_wide_df_master_cal2 %>% 
+    select(new_patient_id,tw1, tw2,tw3, age_g, bmi_g, gender,app_side_n2) %>% 
+    pivot_longer( c(tw1, tw2, tw3), names_to = "interval", values_to = "pc")
+colSums(is.na(long_pc))
+# c = initial - day 90
+long_pc_c <- long_pc %>% filter(interval =="tw3") %>% mutate(app_side_n2=as.factor(app_side_n2))
+
+long_tw <-   hips_wide_df_master_cal2 %>% select(new_patient_id,TW_D_0, TW_D_30,TW_D_90, age_g, bmi_g, gender,app_side_n2) %>% 
+    pivot_longer( c(TW_D_0, TW_D_30,TW_D_90), names_to = "interval", values_to = "tw")
+colSums(is.na(long_tw))
+
+#womax sub scales
+long_wp <-   hips_wide_df_master_cal2 %>% select(new_patient_id,womac_pain_0, womac_pain_30,womac_pain_90, age_g, bmi_g, gender,app_side_n2) %>% 
+    pivot_longer( c(womac_pain_0, womac_pain_30,womac_pain_90), names_to = "interval", values_to = "wp")
+ 
+long_ws <-   hips_wide_df_master_cal2 %>% select(new_patient_id,womac_stiff_0, womac_stiff_30,womac_stiff_90, age_g, bmi_g, gender,app_side_n2) %>% 
+    pivot_longer( c(womac_stiff_0, womac_stiff_30,womac_stiff_90), names_to = "interval", values_to = "ws")
+ 
+long_wf <-   hips_wide_df_master_cal2 %>% select(new_patient_id,womac_func_0, womac_func_30,womac_func_90, age_g, bmi_g, gender,app_side_n2) %>% 
+    pivot_longer( c(womac_func_0, womac_func_30,womac_func_90), names_to = "interval", values_to = "wf")
+ 
+# quls
+long_q <-   hips_wide_df_master_cal2 %>% select(new_patient_id,sub_sums_qols_0, sub_sums_qols_30,sub_sums_qols_90, age_g, bmi_g, gender,app_side_n2) %>% 
+    pivot_longer( c(sub_sums_qols_0, sub_sums_qols_30,sub_sums_qols_90), names_to = "interval", values_to = "tq")
+ 
+
+ 
+#comp womac raw score
+summary(a <- lm( tw ~  interval , data= long_tw))
+#womac pain
+summary(b <- lm( wp ~  interval , data= long_wp))
+#womac stiff
+summary(c <- lm( ws ~  interval , data= long_ws))
+#womac func
+summary(d <- lm( wf ~  interval , data= long_wf))
+#qols
+summary(e <- lm( tq ~  interval , data= long_q))
+
+hips_interval_tukeyst_results <- rbind(TukeyHSD(aov(a))$interval, TukeyHSD(aov(b))$interval, TukeyHSD(aov(c))$interval,TukeyHSD(aov(d))$interval,TukeyHSD(aov(e))$interval)
+
+hips_interval_tukeyst_results
+write.csv(hips_interval_tukeyst_results , "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_interval_tukeyst_results_final.csv")
+
+```
+
+
+```{r demo hips for time change C}
+    
+
+long_tw_c <- hips_wide_df_master_cal2 %>%  filter(app_side_n2 <= 2) %>% 
+    mutate(app_side_n2=as.factor(app_side_n2)) 
+table(long_tw_c$app_side_n2)
+
+summary(lm_retw_c <- lm( twc ~  app_side_n2  , data= long_tw_c))
+TukeyHSD(aov(lm_retw_c))
+
+summary(tw3 <- lm( twc ~  age_g + gender + bmi_g , data= hips_wide_df_master_cal2))
+summary(wp3 <- lm( wpc ~  age_g + gender + bmi_g , data= hips_wide_df_master_cal2))
+summary(ws3 <- lm( wsc ~  age_g + gender + bmi_g , data= hips_wide_df_master_cal2))
+summary(wf3 <- lm( wfc ~  age_g + gender + bmi_g , data= hips_wide_df_master_cal2))
+summary(qq3 <- lm( q3c ~  age_g + gender + bmi_g , data= hips_wide_df_master_cal2))
+t0 <- TukeyHSD(aov(tw3))  
+t0$bmi_g
+hips_demo_tukeyst_results <- rbind(TukeyHSD(aov(tw3))$age_g, TukeyHSD(aov(tw3))$gender,TukeyHSD(aov(tw3))$bmi_g,
+                                   TukeyHSD(aov(wp3))$age_g, TukeyHSD(aov(wp3))$gender,TukeyHSD(aov(wp3))$bmi_g,                                        TukeyHSD(aov(ws3))$age_g, TukeyHSD(aov(ws3))$gender,TukeyHSD(aov(ws3))$bmi_g,
+                                   TukeyHSD(aov(wf3))$age_g, TukeyHSD(aov(wf3))$gender,TukeyHSD(aov(wf3))$bmi_g,
+                                   TukeyHSD(aov(qq3))$age_g, TukeyHSD(aov(qq3))$gender,TukeyHSD(aov(qq3))$bmi_g)
+
+hips_demo_tukeyst_results
+
+write.csv(hips_demo_tukeyst_results , "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_demo_tukeyst_results_final.csv")
+    
+ 
+
+
+```
+### applications on the same side
+
+```{r}
+
+hips_app_2 <- hips_wide_df_master_cal2 %>% filter(app_side_n2  <= 2)
+summary(tw3app <- lm( twc ~  app_side_n2 , data= hips_app_2)) # only for total womac
+summary(wp3app <- lm( wpc ~  app_side_n2 , data= hips_app_2))
+summary(ws3app <- lm( wsc ~  app_side_n2 , data= hips_app_2))
+summary(wf3app <- lm( wfc ~  app_side_n2 , data= hips_app_2))
+summary(qq3app <- lm( q3c ~  app_side_n2 , data= hips_app_2))
+
+TukeyHSD(aov(tw3app))  
+
+```
+
+
+
+### Summary table
+
+```{r}
+
+library(gtsummary)
+
+
+my_sample %>% #filter(interval != 30) %>% 
+    select(interval,total_womac,side, age, gender,app_n,app_side_n) %>% 
+     tbl_summary( by = interval,
+            statistic = all_continuous() ~ "{mean} ({sd}) {min} {max}",
+            missing = "no", percent = "col"
+                        ) %>%  add_n()
+# more table
+
+t1 <- my_sample %>% select(interval, "mycol"=sub_item, sub_sums, total_womac, new_patient_id) %>% 
+    group_by(interval,  mycol) %>% 
+    summarise(AVE_SS= mean(sub_sums), AVE_TW = mean(total_womac), n=length(unique(new_patient_id))) %>% 
+    pivot_wider(names_from = interval, names_prefix = "D_", values_from = c(AVE_SS, AVE_TW, n))
+
+t2 <- my_sample %>% select(interval, "mycol"=gender, sub_sums, total_womac, new_patient_id) %>% 
+    group_by(interval, mycol) %>% 
+    summarise(AVE_SS= mean(sub_sums), AVE_TW = mean(total_womac), n=length(unique(new_patient_id))) %>% 
+    pivot_wider(names_from = interval, names_prefix = "D_", values_from = c(AVE_SS, AVE_TW,n))
+
+t3 <- my_sample %>% select(interval, "mycol"=age_g, sub_sums, total_womac, new_patient_id) %>% 
+    group_by(interval, mycol) %>% 
+    summarise(AVE_SS= mean(sub_sums), AVE_TW = mean(total_womac), n=length(unique(new_patient_id))) %>% 
+    pivot_wider(names_from = interval, names_prefix = "D_", values_from = c(AVE_SS, AVE_TW,n))
+
+t4 <- my_sample %>% select(interval, "mycol"=bmi_g, sub_sums, total_womac, new_patient_id) %>% 
+    group_by(interval, mycol) %>% 
+    summarise(AVE_SS= mean(sub_sums), AVE_TW = mean(total_womac), n=length(unique(new_patient_id)))%>% 
+    pivot_wider(names_from = interval, names_prefix = "D_", values_from = c(AVE_SS, AVE_TW,n))
+
+t5 <- my_sample %>% select(interval, "mycol"=side, sub_sums, total_womac, new_patient_id) %>% 
+    group_by(interval, mycol) %>% 
+    summarise(AVE_SS= mean(sub_sums), AVE_TW = mean(total_womac), n=length(unique(new_patient_id))) %>% 
+    pivot_wider(names_from = interval, names_prefix = "D_", values_from = c(AVE_SS, AVE_TW,n))
+
+t6 <- my_sample %>% select(interval, "mycol"=app_side_n, sub_sums, total_womac, new_patient_id) %>% 
+    group_by(interval, mycol) %>% 
+    summarise(AVE_SS= mean(sub_sums), AVE_TW = mean(total_womac), n=length(unique(new_patient_id))) %>% 
+    pivot_wider(names_from = interval, names_prefix = "D_", values_from = c(AVE_SS, AVE_TW,n))
+
+t7 <- my_sample %>% select(interval, "mycol"=app_n, sub_sums, total_womac, new_patient_id) %>%  
+    group_by(interval, mycol) %>% 
+    summarise(AVE_SS= mean(sub_sums), AVE_TW = mean(total_womac), n=length(unique(new_patient_id))) %>% 
+    pivot_wider(names_from = interval, names_prefix = "D_", values_from = c(AVE_SS, AVE_TW ,n) )
+
+ sum_table_all <- rbind(t1,t2,t3,t4,t5,t6,t7)
+
+datatable(sum_table_all)
+my_sample
+
+```
+
+
+# Find transition scale for ROC anlaysis
+
+- box-plot
+- replace nas for nprs 1 and 2 by difference womac total score
+
+```{r }
+
+hips_diff_womac <- my_sample %>%  #846
+    mutate(womac_1 = ifelse(interval == 0, total_womac, NA)) %>% 
+     mutate(womac_2 = ifelse(interval == 90, total_womac, NA)) %>% 
+     mutate(womac_3 = ifelse(interval == 30, total_womac, NA)) %>% 
+    select(new_patient_id, date_of_initial_application,side, womac_1, womac_2 ) %>% 
+    group_by(new_patient_id) %>% fill(womac_1, .direction = c("updown")) %>% 
+    fill(womac_2, .direction = c("updown")) %>% unique() %>% 
+    mutate(diff_womac = womac_2 - womac_1)
+
+womac_only <- my_sample %>% select(new_patient_id, side, app_side_n, total_womac, interval) %>% 
+      unique() %>% 
+     pivot_wider(names_from = interval, names_prefix = "D_", values_from = total_womac) # 94
+# select first application for each id and side
+nprs_cutoff <- c(-Inf,-3, -4, -1, 0,  10)
+nprs_labels <- c("much better", "better", "slightly better", "no change", "worse")
+nprs_cutoff2 <- c(-Inf, 0, 3, 4, 10)
+nprs_labels2 <- c("no pain","mild pain","moderate pain","severe pain")
+improved <- c("much better", "better", "slightly better")
+improved2 <- c("no pain","mild pain")
+womac1 <- c(-Inf, 20, 40, 60, 96)
+womac1_label <- c("mild","moderate","severe", "extreme")
+improved_w <- c("mild","moderate")
+
+
+
+# final data - choose transition scale
+divided  <- my_sample %>% mutate(bmi_g = ifelse(is.na(bmi_g), "Missing", bmi_g)) %>% 
+    left_join(womac_only, by = c("new_patient_id","side","app_side_n")) %>% #846
+    #filter(app_side_n == 1) %>% # first application for each side
+    mutate(diff_womac_0 = (D_90 - D_0)) %>% 
+    mutate(diff_womac = (96 - (diff_womac_0))/96) %>% # converted into positive values (higher better)
+    #mutate(diff_womac = abs(D_90 - D_0)) %>% 
+    #mutate(diff_womac = sin(D_90 - D_0)*log(1+abs(D_90 - D_0))) %>% 
+    #mutate(diff_womac = scale(D_90 - D_0)) %>%
+    mutate(nprs_1 = as.double(nprs_1), nprs_2 = as.double(nprs_2)) %>% 
+    mutate(nprs_com1 = ifelse(is.na(nprs_1), 0, nprs_1)) %>% # replace na to zero pain ( since nprs2 were 1 or 2)
+    mutate(nprs_com2 = ifelse(is.na(nprs_2) & diff_womac_0 < 0 , nprs_1 - 1, nprs_2)) %>% # replace nprs 2 -1 if womac score lower than womac 1
+    mutate(nprs_com2 = ifelse(is.na(nprs_com2) & diff_womac_0 < 0, nprs_com1 - 1, nprs_com2 )) %>% 
+    mutate(nprs_com2 = ifelse(is.na(nprs_com2) & diff_womac_0 >= 0, nprs_com1 + 1, nprs_com2 )) %>% # replace nprs 2 +1 if womac socre higher
+    filter(interval != 30) %>%  # initial and 90 days
+    mutate(diff_nprs = nprs_com2 - nprs_com1) %>% 
+    mutate(w2 =  D_90 - D_0) %>% # using  w2
+    mutate(anchor_g = cut(diff_nprs, breaks = nprs_cutoff , labels = nprs_labels)) %>%  # m1 - use diff nprs 1 and 2
+    mutate(anchor_g2 = cut(nprs_com2, breaks = nprs_cutoff2 , labels = nprs_labels2)) %>% # m2 - use nprs 2 only
+    mutate(anchor_w = cut(D_0, breaks = womac1 , labels = womac1_label)) %>% # m3 use w 1
+    mutate(anchor_w2 = cut(D_90, breaks = womac1 , labels = womac1_label)) %>% # m4 using w2
+    mutate(anchor_g2 = ifelse(anchor_g2 %in% improved2, "improved","not improved")) %>% # using nprs 2 model 2
+    mutate(anchor_gg = ifelse(anchor_g %in% improved, "improved","not improved")) %>% # using nprs diff model 1
+    mutate(anchor_ww = ifelse(anchor_w %in% improved_w, "improved","not improved")) %>% # using womac 1 model 3
+    mutate(anchor_www = ifelse(anchor_w2 %in% improved_w, "improved","not improved")) %>% # model 4
+    select(new_patient_id,age, age_g,bmi, bmi_g, gender, side,app_side_n,app_n,
+           D_0,D_30,D_90,nprs_com1, nprs_com2,diff_nprs, diff_womac_0, diff_womac,anchor_g,anchor_g2,anchor_gg,
+           anchor_w, anchor_ww,anchor_www) %>% 
+    unique() %>%  #76
+    #mutate(mis_match = ifelse( diff_womac_0 > 0 & diff_nprs < 0, 1, 0)) %>% 
+    mutate(improved = as.factor(ifelse(anchor_gg == "improved", 1,0))) # dependent factor by anchor
+
+
+## removed not match with nprs score and womac difference
+
+divided_df <- divided %>% filter(app_side_n == 1)
+    #filter(mis_match == 0)  # 71 / 76 didn't work
+
+table(divided_df$side)
+length(unique(divided_df$new_patient_id))
+hist(divided_df$diff_womac_0)
+hist(divided_df$diff_womac)
+
+
+```
+
+
+
+# plot - by transition scale
+
+```{r}
+
+achorplot <- ggplot(divided_df, aes(x = anchor_gg, y = diff_womac_0, color = anchor_gg)) +  #anchor_g2
+    geom_boxplot(outlier.colour  ="black", fill = "grey")+
+    theme_classic()+
+     geom_jitter(size = 1.5, width = 0.3) +
+    stat_summary( fun = "mean", color = "red", shape=8) +
+    labs(title = "Plot: the difference in WOMAC scores per anchor question", x= "Anchor Question", y = "difference in WOMAC score between initial and day 90")
+achorplot
+
+
+ggplot(divided_df, aes(x = improved, y = diff_womac, color = improved)) +  #anchor_w
+    geom_boxplot(outlier.colour  ="black")+
+     geom_jitter(size = 1.5, width = 0.3) +
+    stat_summary( fun = "mean", color = "red", shape=8)
+
+ggplot(divided_df, aes(x = improved, y = diff_womac, color = age_g)) +  #anchor_w
+    geom_boxplot(outlier.colour  ="black")+
+     geom_jitter(size = 1.5, width = 0.3) +
+    stat_summary( fun = "mean", color = "red", shape=8)
+
+
+
+
+```
+
+## Find comparison group  
+
+```{r}
+ 
+
+summary(lm_1 <- lm(diff_womac  ~ anchor_g , data= divided_df))
+TukeyHSD(aov(lm_1))
+
+summary(lm_2 <- lm(diff_womac ~ improved, data= divided_df))
+TukeyHSD(aov(lm_2))
+
+summary(lm_demo <- lm(diff_womac ~  gender + bmi_g + age_g + side , data= divided_df))
+TukeyHSD(aov(lm_demo))
+ 
+
+
+
+```
+
+## ROC anlaysis
+
+
+```{r}
+
+# find the probability of improved using glm
+set.seed(1234)  
+summary(glm_mm <- glm(improved ~  diff_womac, data = divided_df, family = "binomial"))
+# probabilities
+pim <- predict(glm_mm, divided_df, type="response")
+#histogram of prob
+hist(pim)
+# Sample prediction probabilities and true labels
+prob_improved <- pim
+true_labels <- divided_df$improved
+ 
+df <- data.frame(divided_df,prob_improved)
+write.csv(df, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_roc_analysis_mcid_final.csv",row.names = FALSE)
+
+# write.csv(df, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_roc_analysis_mcid_test.csv",row.names = FALSE)
+# Load the pROC package for ROC analysis
+library(pROC)
+
+# Create an ROC curve
+roc_curve <- roc(response = true_labels, predictor = prob_improved)
+#threshold/sensitivity/specificity
+tss <- coords(roc_curve, transpose=FALSE)
+ 
+df_cases <- data.frame(tss) 
+df_cases$youden <-  (df_cases$specificity + df_cases$sensitivity) -1 
+df_cases
+write.csv(df_cases, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_roc_cases_final.csv",row.names = FALSE)
+# Plot the ROC curve
+plot(roc_curve, print.thres = "best", print.thres.best.method = "youden")
+#roc(response = true_labels, predictor = prob_improved, plot=TRUE, print.auc =TRUE)
+ 
+# Compute the AUC (Area Under the ROC Curve)
+auc_value <- auc(roc_curve)
+auc_value
+# Find the threshold that maximizes Youden's Index
+optimal_threshold <- coords(roc_curve, "best")$threshold
+optimal_sensitivity <- coords(roc_curve, "best")$sensitivity
+optimal_specificity <- coords(roc_curve, "best")$specificity
+# for table
+roc_name <- c("auc","threshold","sensitivity","specificity")
+roc_results <- data.frame(roc_name, "best_value"=c(auc_value,optimal_threshold,optimal_sensitivity,optimal_specificity ))
+ 
+
+# Print the AUC and optimal threshold results
+cat("AUC:", auc_value, "\n")
+cat("Optimal Threshold:", optimal_threshold, "\n")
+cat("Optimal Sensitivity:", optimal_sensitivity, "\n")
+cat("Optimal Specificity:", optimal_specificity, "\n")
+
+df_glm_mm <- df %>% 
+    mutate(resp = ifelse(prob_improved >= optimal_threshold , 1,0)) %>% 
+    relocate(c(diff_womac_0,diff_womac), .before = prob_improved )
+df_glm_mm
+
+# find accuracy
+library(caret)
+df_glm_mm$resp <- as.factor(df_glm_mm$resp)
+confusionMatrix(data = df_glm_mm$resp, ref = df_glm_mm$improved, positive = "1")
+
+# save final dataset with probability
+# save final dataset for report
+#write.csv(divided,  "hips_mcid_dataset.csv", row.names = FALSE)
+
+```
+
+### MCID proportion
+
+
+```{r}
+
+# raw diff_womac by response
+ mcid_v <-  df_glm_mm %>%  group_by(improved) %>% 
+    summarise(N=n(), mean_womac = mean(diff_womac_0) ) %>% 
+    mutate(mcid_value = paste0(round(abs(mcid_v$mean_womac)/96*100,4), "%", sep=" "))
+ 
+ 
+# 0	20	8.35000	8.4343%	
+# 1	56	-17.23214	17.4062% 
+mv <- mcid_v %>% filter(improved == 1) %>% select(mean_womac)
+ 
+#MCID perdentage
+r1 <- df_glm_mm %>%  mutate(exceed_mcid = ifelse(diff_womac_0 <= mv$mean_womac ,"Y","N")) %>% 
+    tabyl(exceed_mcid)  
+ 
+ # final table
+
+  # m1 <- data.frame(mcid_v, r1, roc_results) %>% mutate(models = rep("m1"))
+  # m2 <- data.frame(mcid_v, r1, roc_results) %>% mutate(models = rep("m2"))
+  # m3 <- data.frame(mcid_v, r1, roc_results) %>% mutate(models = rep("m3"))
+  # m4 <- data.frame(mcid_v, r1, roc_results) %>% mutate(models = rep("m4"))
+  # 
+ 
+#hipls_final_mcid_results <-  rbind( m1, m2,m3, m4)
+
+youden_j = data.frame(models = c("m1","m2","m3","m4"),youden_j=c((0.8076923+0.7500000-1),(0.9250000+0.4722222-1),(0.7307692+0.5800000-1),(0.3846154+0.9729730-1)))
+
+hips_mcid_values_by_models <-   hipls_final_mcid_results %>% left_join(youden_j, by ="models")
+write.csv(hips_mcid_values_by_models, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_final_mcid_results_ms.csv", row.names = FALSE)
+ 
+hips_mcid_values_by_models
+
+```
+### comparitons
+
+```{r}
+
+model <-  c("m1","m2","m3","m4")
+
+
+
+
+```
+
+
+# Old Code
+--------------------------------------------------------------------------------
+# Identifying Transition Score (TS)
+
+- Used NPRS score as an anchor to establish the MCID 
+    
+    - NPRS initial score (nprs1)
+    - NPRS day 90 score (nprs2)
+    - Transition Score (TS) = nprs2 - nprs1 (range -8 to 6)
+        - much better: TS <= -3
+        - slightly better: TS(-3,-1]
+        - no change: TS == 0
+        - slightly worse: TS > 0
+        
+        # recoded
+     - Transition Score (TS) = nprs2 (range 0 to 10)
+        - no pain: TS = 0
+        - mild pain: TS(0, 3]
+        - moderate pain: TS(3, 6]
+        - severe pain: TS(6, 10]
+ 
+ 
+### transition scale using nprs score from initial to day 90 
+
+```{r no run eval=FALSE, include=FALSE}
+### no run
+
+hips_cleaned <- Hips_9_21_23_raw %>%  
+    mutate_at(c(18:61, 64:107,108:153), as.double) %>% 
+    # mutate_at( c(18:61, 64:107,108:153), ~replace_na(.x, 0)) %>% 
+    mutate(total_pain_initial = rowSums(across(18:22))) %>% 
+    mutate(total_pain_day_30 = rowSums(across(64:68))) %>% 
+    mutate(total_pain_day_90 = rowSums(across(110:114))) %>% 
+    mutate(total_stiffness_initial = rowSums(across(24:25))) %>% 
+    mutate(total_stiffness_day_30  = rowSums(across(70:71))) %>% 
+    mutate(total_stiffness_day_90 = rowSums(across(116:117)))%>% 
+    mutate(total_function_initial = rowSums(across(27:42))) %>% 
+    mutate(total_function_day_30 = rowSums(across(73:88))) %>% 
+    mutate(total_function_day_90 = rowSums(across(119:134)))  %>% 
+    mutate(total_qols_initial = rowSums(across(material_comforts_45:independence_60))) %>% 
+    mutate(total_qols_day_30 = rowSums(across(material_comforts_91:independence_106))) %>% 
+    mutate(total_qols_day_90 = rowSums(across(material_comforts_137:independence_152)))  %>% 
+     select(1:17,  contains("nprs"), contains("womac"), contains("qols"), contains("initial"), contains("_30"), contains("_90"))  %>% 
+    mutate(total_womac_initial = rowSums(.[c("total_pain_initial","total_stiffness_initial","total_function_initial")], na.rm = TRUE)) %>% 
+    mutate(total_womac_day_30 = rowSums(.[c("total_pain_day_30","total_stiffness_day_30","total_function_day_30")], na.rm = TRUE)) %>% 
+    mutate(total_womac_day_90 = rowSums(.[c("total_pain_day_90","total_stiffness_day_90","total_function_day_90")], na.rm = TRUE))  
+
+
+ 
+```
+ 
+```{r transition scale using nprs}
+
+
+#TSG2 - remove outlier
+ # saveRDS(hips_cleaned5, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_cleaned5.rds")
+hips_cleaned5 <- readRDS( "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_cleaned5.rds")
+
+outliers <- c( mean(hips_cleaned5$diff_womac, na.rm=T)-2.5*sd(hips_cleaned5$diff_womac, na.rm=T),
+               mean(hips_cleaned5$diff_womac, na.rm=T)+2.5*sd(hips_cleaned5$diff_womac, na.rm=T))
+
+min_w <- outliers[1]
+max_w <- outliers[2]
+
+
+hips_cleaned6 <-  hips_cleaned5 %>% filter(diff_womac >= min_w & diff_womac <= max_w)  #79
+
+
+nprs_scale <- hips_cleaned6 %>%  
+    mutate(nprs_1 = ifelse(is.na(nprs_1), 0, nprs_1)) %>% # replace NA nprs 1 as 0 since nprs2 <= 2
+    mutate(diff_nprs = (nprs_2 -  nprs_1)) %>% 
+    mutate(nprs_1_g = cut(nprs_1, breaks = c(-Inf,0, 3,5,7,10), 
+                                            labels = FALSE)  ,
+           nprs_2_g = cut(nprs_2, breaks = c(-Inf,0, 3,5,7,10), 
+                                            labels = FALSE) ) %>% 
+    mutate(transition_diff_nprs = cut(diff_nprs, breaks = c(-Inf, -3, -1, 0, 6), 
+                              labels = c("much better","slightly better","no change","slightly worse"))) %>%  # first attempt
+    mutate(transition_nprs2 = cut(nprs_2, breaks = c(-Inf,0, 3,6,10),
+                               labels = c("no pain","mild pain","moderate pain","severe pain"))) %>% 
+    mutate(nprs_imp = nprs_2_g - nprs_1_g) %>% 
+      mutate(transition_lvl =  cut(nprs_imp, breaks = c(-Inf, -1, 0, 2), labels = c("slightly better","no change","slightly worse"))) %>% 
+     mutate(transition_lvl2 =  cut(nprs_imp, breaks = c(-Inf, -1,  2), labels = c("better","no change or worse"))) %>%
+     mutate(nprs_1_gg = cut(nprs_1, breaks = c(-Inf,0, 5,7,10), 
+                                            labels = FALSE)  ,
+           nprs_2_gg= cut(nprs_2, breaks = c(-Inf,0, 5,7,10), 
+                                            labels = FALSE) ) %>%
+    mutate(nprs_imp2 = nprs_2_gg - nprs_1_gg) %>% 
+    mutate(ts2 = paste0(nprs_1_gg, sep="_", nprs_2_gg)) %>% 
+    mutate(transition_diff_nprs2 =  cut(nprs_imp2, breaks = c(-Inf,-2, -1,0,1, 2), 
+                                        labels = c("much better", "slightly better" ,"no change", "slightly worse","much worser")))
+    
+ 
+table(nprs_scale$nprs_imp)
+table(nprs_scale$transition_lvl)
+table(nprs_scale$transition_lvl2)
+table(nprs_scale$transition_diff_nprs)
+table(nprs_scale$transition_diff_nprs2)
+#colSums(is.na(nprs_scale))
+
+
+
+# box plot for TS group
+ggplot(nprs_scale, aes(x=transition_diff_nprs, y = diff_womac,
+    color = transition_diff_nprs)) +
+    geom_boxplot(outlier.color = "black") +
+    geom_jitter(size = 1.5, width = 0.3)+
+    stat_summary( fun ="mean", color = "red", shape = 8)
+# box plot for TS group2
+ggplot(nprs_scale, aes(x=transition_nprs2, y = diff_womac,
+    color = transition_nprs2)) +
+    geom_boxplot(outlier.color = "black") +
+    geom_jitter(size = 1.5, width = 0.3)+
+    stat_summary( fun ="mean", color = "red", shape = 8)
+
+# box plot for TS1
+ggplot(nprs_scale, aes(x=factor(diff_nprs), y = diff_womac,
+    color = diff_nprs)) +
+    geom_boxplot(outlier.color = "black") +
+    geom_jitter(size = 1.5, width = 0.3)+
+    stat_summary( fun ="mean", color = "red", shape = 8)
+# box plot for TS2
+ggplot(nprs_scale, aes(x=factor(nprs_2), y = diff_womac,
+    color = nprs_2)) +
+    geom_boxplot(outlier.color = "black") +
+    geom_jitter(size = 1.5, width = 0.3)+
+    stat_summary( fun ="mean", color = "red", shape = 8)
+
+# box plot for five gg
+ggplot(nprs_scale, aes(x=factor(transition_diff_nprs2), y = diff_womac,
+    color = nprs_imp2)) +
+    geom_boxplot(outlier.color = "black") +
+    geom_jitter(size = 1.5, width = 0.3)+
+    stat_summary( fun ="mean", color = "red", shape = 8)
+
+
+
+
+# mean difference WOMAC by transition level
+nprs_scale %>% group_by(transition_nprs2) %>%
+    summarise(median_diff = median(diff_womac), min_diff = min(diff_womac),max_diff = max(diff_womac), 
+              SD= sd(diff_womac), N= n())
+
+```
+ 
+## WOMAC scale
+
+-Define the effect by womac score at 90 days follow-up minus the initial
+
+-Included:  ?? "slightly better", "no change", "slightly worse"   
+
+    -??Regrouped TS group 
+        -Improved: TS < 0
+        -Not Improve: TS >= 0
+
+    -boxplot by TS group
+
+ 
+```{r determine difference womac by transition score group}
+
+
+determine_improved <- nprs_scale  
+
+# selected sample
+sbnc <- c("slightly better","no change" )
+mbsb <- c("much better",  "slightly better")
+mbsbnc <- c("much better",  "slightly better", "no change")
+sbncsw <- c(  "slightly better", "no change", "slightly worse", "much worser")
+nprs2_group <- c("mild pain","no pain")
+nprs2_two <- c("mild pain",  "moderate pain")
+nprs2_three<- c("mild pain",  "moderate pain", "severe pain")
+nprs2_4 <- c("no pain")
+nprs_lvl <- c("slightly worse")
+#data for mcid
+determine_mcid <- determine_improved %>% #filter(transition_nprs2 %in% sbncsw) %>% 
+     #mutate(mcid_dependent = ifelse(transition_lvl2 == "slightly better", 1, 0)) %>% 
+     mutate(mcid_dependent2 = as.factor(ifelse(transition_nprs2 %in% nprs2_group, 1,0))) %>% #0.84
+    mutate(mcid_dependent3 = as.factor(ifelse(transition_nprs2 %in% nprs2_group, "Improved", "Not Improved")))
+    #filter(!duplicated(new_patient_id))  # 0.788
+
+#table(determine_mcid$mcid_dependent3)
+
+gg2 <- ggplot(determine_mcid, aes(x=mcid_dependent3, y = diff_womac,
+    color = mcid_dependent3)) +
+    geom_boxplot(outlier.color = "black") +
+    geom_jitter(size = 1.5, width = 0.3)+
+    stat_summary( fun ="mean", color = "red", shape = 8)
+
+
+hist2 <- hist(determine_mcid$diff_womac)
+
+# glimpse(determine_mcid)
+
+# determine_mcid %>% group_by(mcid_dependent3) %>% 
+#     summarise(MCID = mean(diff_womac), n= n())
+
+gg2
+hist2
+```
+
+### ROC analysis
+
+
+```{r}
+
+
+set.seed(1234)  
+summary(glm_m <- glm(mcid_dependent2 ~  diff_womac, data = determine_mcid, family = "binomial"))
+pred_im <- predict(glm_m, determine_mcid, type="response")
+hist(pred_im)
+pred_im2 <- predict(glm_m, determine_mcid)
+# Sample prediction probabilities and true labels
+prob_improved <- pred_im
+true_labels <- determine_mcid$mcid_dependent2
+ 
+df <- data.frame(determine_mcid,prob_improved)
+# write.csv(df, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_roc_analysis_mcid_test.csv",row.names = FALSE)
+# Load the pROC package for ROC analysis
+library(pROC)
+
+# Create an ROC curve
+roc_curve <- roc(response = true_labels, predictor = prob_improved)
+# roc_curve$sensitivities
+# roc_curve$specificities
+# roc_curve$thresholds
+# roc_curve$cases
+# roc_curve$response
+ 
+ 
+ 
+df_cases <- data.frame(coords(roc_curve, transpose=FALSE))  
+ # write.csv(df_cases, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_roc_cases_test.csv",row.names = FALSE)
+# Plot the ROC curve
+plot(roc_curve, print.thres = "best", print.thres.best.method = "youden")
+roc(response = true_labels, predictor = prob_improved, plot=TRUE, print.auc =TRUE)
+df_cases
+ 
+ 
+# Compute the AUC (Area Under the ROC Curve)
+auc_value <- auc(roc_curve)
+auc_value
+# Find the threshold that maximizes Youden's Index
+optimal_threshold <- coords(roc_curve, "best")$threshold
+optimal_sensitivity <- coords(roc_curve, "best")$sensitivity
+optimal_specificity <- coords(roc_curve, "best")$specificity
+
+# Print the AUC and optimal threshold results
+cat("AUC:", auc_value, "\n")
+cat("Optimal Threshold:", optimal_threshold, "\n")
+cat("Optimal Sensitivity:", optimal_sensitivity, "\n")
+cat("Optimal Specificity:", optimal_specificity, "\n")
+
+ 
+
+```
+
+### Estimated the MCID proportion
+
+-proportion of the sample with a change score exceeding the MCID
+     
+     -best cutoff : 0.511
+     -mcid = -19.76923 (deduction 20.6% out of 96)
+
+```{r}
+library(janitor)
+
+mcid_df  <- df %>% select(diff_womac,prob_improved) %>% 
+    mutate(pred_lvl2 = as.factor(ifelse(prob_improved >= 0.511, "Y" ,"N"))) %>% 
+    group_by(pred_lvl2) %>% 
+    summarise(ave.womac = mean(diff_womac, na.rm=T) )
+
+mcid_df
+ 
+inter_mcid <- df %>%  
+    mutate(exceed_mcid = ifelse(diff_womac <= -19.76923 , "Y","N")) %>% 
+    relocate(exceed_mcid, .after = diff_womac)
+
+
+ inter_mcid %>% 
+     janitor::tabyl(exceed_mcid)
+ 
+ 
+```
+
+
+
+
+
+### Optimal cutoff - no run
+
+
+```{r eval=FALSE, include=FALSE}
+library(ROCR)
+table(df$mcid_dependent2, df$pred_lvl)
+pr_improved <- prediction(prob_improved, df$mcid_dependent2)
+prf_improved <- performance(pr_improved, measure = "tpr", x.measure = "fpr")
+plot(prf_improved, colorize = TRUE, lwd=3)
+
+imp_perf = performance(pr_improved, "cost")
+cutoff <- pr_improved@cutoffs[[1]][which.min(imp_perf@y.values[[1]])]
+cutoff 
+pred_im_f  <- ifelse(prob_improved  > cutoff , 1, 0)
+hist(prob_improved)
+
+# and to get the exact value acu(aka area under the curve) 
+auc_apr <- performance(pr_improved, measure = "auc")
+auc_apr@y.values[[1]]  # 0.6898263
+ 
+df$pred_f <- pred_im_f
+
+df_results <- df %>% mutate(class_pre = ifelse(mcid_dependent2 == pred_f , 1, 0))
+ 
+tt <- table(df_results$class_pre)
+
+tt
+df_results
+
+```
+
+
+
+ 
+
+
+
+
+
+### no run
+
+```{r eval=FALSE, include=FALSE}
+
+# Create a dataframe
+df <- data.frame(prob_improved, true_labels)
+
+# Sort the dataframe by predicted probabilities
+df <- df[order(-prob_improved), ]
+
+#62
+# Calculate sensitivity and specificity for different thresholds
+thresholds <- seq(0,1, by = 1) # this is probability
+sensitivity <- numeric(length(thresholds))
+specificity <- numeric(length(thresholds))
+
+for (i in 1:length(thresholds)) {
+  threshold <- thresholds[i] # error
+  predicted_labels <- ifelse(prob_improved >= threshold, 1, 0)
+  
+  true_positive <- sum(predicted_labels == 1 & true_labels == 1)
+  false_negative <- sum(predicted_labels == 0 & true_labels == 1)
+  true_negative <- sum(predicted_labels == 0 & true_labels == 0)
+  false_positive <- sum(predicted_labels == 1 & true_labels == 0)
+  
+  sensitivity[i] <-   (true_positive + false_negative)
+  specificity[i] <- true_negative / (true_negative + false_positive)
+}
+
+# Calculate Youden's Index for different thresholds
+youden_index <- sensitivity + specificity - 1
+
+# Find the threshold that maximizes Youden's Index
+optimal_threshold <- thresholds[which.max(youden_index)]
+optimal_sensitivity <- sensitivity[which.max(youden_index)]
+optimal_specificity <- specificity[which.max(youden_index)]
+optimal_youden <- youden_index[which.max(youden_index)]
+
+# Print the results
+cat("Optimal Threshold:", optimal_threshold, "\n")
+cat("Optimal Sensitivity:", optimal_sensitivity, "\n")
+cat("Optimal Specificity:", optimal_specificity, "\n")
+cat("Optimal Youden's Index:", optimal_youden, "\n")
+```
+
+ 
