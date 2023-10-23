@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE,warning=FALSE)
 library(tidyverse)
 library(janitor)
 
-Hips_9_21_23 <- read_csv ("G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/Hips_9_21_23_raw.csv" )
+Hips_9_21_23 <- read_csv (".../Hips_9_21_23_raw.csv" )
 
 Hips_9_21_23_raw2 <- Hips_9_21_23 %>% 
     janitor::clean_names() %>% 
@@ -178,7 +178,7 @@ qols_all_wide <- qols_all %>% filter(sub_na_n < 4) %>%
 
 ```{r message=FALSE, warning=FALSE}
 library(tidyverse)
-my_womac <- read_csv("G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_womac_items2_cleaned_master.csv")
+my_womac <- read_csv("...hips_womac_items2_cleaned_master.csv")
 
 # mean diff by nprs1
 ave_womac <- my_womac  %>% group_by(new_patient_id,side,interval, scale) %>% 
@@ -324,7 +324,7 @@ hips_wide_df_master_cal2 <- hips_wide_df_master_cal %>% arrange(new_patient_id, 
     relocate(app_n2, .after = app_n)
 
 # save hips data with total scores onlu
-write.csv(hips_wide_df_master_cal2, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_wide_df_master.csv", row.names = FALSE)
+write.csv(hips_wide_df_master_cal2, ".../hips_wide_df_master.csv", row.names = FALSE)
 
 ```
 ### tables: Average diff pain scale by intervals - positive valeus are the better outcomes
@@ -343,7 +343,7 @@ tab1 <- hips_wide_df_master_cal2  %>%  pivot_longer(c(13:45), names_to = "scales
 
 tab1
 
-write.csv(tab1 , "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_mean_diff_by_intervals.csv")
+write.csv(tab1 , ".../hips_mean_diff_by_intervals.csv")
 
 
 ```
@@ -393,7 +393,7 @@ summary(e <- lm( tq ~  interval , data= long_q))
 hips_interval_tukeyst_results <- rbind(TukeyHSD(aov(a))$interval, TukeyHSD(aov(b))$interval, TukeyHSD(aov(c))$interval,TukeyHSD(aov(d))$interval,TukeyHSD(aov(e))$interval)
 
 hips_interval_tukeyst_results
-write.csv(hips_interval_tukeyst_results , "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_interval_tukeyst_results_final.csv")
+write.csv(hips_interval_tukeyst_results , ".../hips_interval_tukeyst_results_final.csv")
 
 ```
 
@@ -422,7 +422,7 @@ hips_demo_tukeyst_results <- rbind(TukeyHSD(aov(tw3))$age_g, TukeyHSD(aov(tw3))$
 
 hips_demo_tukeyst_results
 
-write.csv(hips_demo_tukeyst_results , "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_demo_tukeyst_results_final.csv")
+write.csv(hips_demo_tukeyst_results , ".../hips_demo_tukeyst_results_final.csv")
     
  
 
@@ -647,9 +647,7 @@ prob_improved <- pim
 true_labels <- divided_df$improved
  
 df <- data.frame(divided_df,prob_improved)
-write.csv(df, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_roc_analysis_mcid_final.csv",row.names = FALSE)
 
-# write.csv(df, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_roc_analysis_mcid_test.csv",row.names = FALSE)
 # Load the pROC package for ROC analysis
 library(pROC)
 
@@ -661,7 +659,6 @@ tss <- coords(roc_curve, transpose=FALSE)
 df_cases <- data.frame(tss) 
 df_cases$youden <-  (df_cases$specificity + df_cases$sensitivity) -1 
 df_cases
-write.csv(df_cases, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_roc_cases_final.csv",row.names = FALSE)
 # Plot the ROC curve
 plot(roc_curve, print.thres = "best", print.thres.best.method = "youden")
 #roc(response = true_labels, predictor = prob_improved, plot=TRUE, print.auc =TRUE)
@@ -979,7 +976,6 @@ roc_curve <- roc(response = true_labels, predictor = prob_improved)
  
  
 df_cases <- data.frame(coords(roc_curve, transpose=FALSE))  
- # write.csv(df_cases, "G:/Shared drives/HMCSE-PAM Lab/Jay's Space/2023 Active Projects/08/Regenative Labs 2023/hips_roc_cases_test.csv",row.names = FALSE)
 # Plot the ROC curve
 plot(roc_curve, print.thres = "best", print.thres.best.method = "youden")
 roc(response = true_labels, predictor = prob_improved, plot=TRUE, print.auc =TRUE)
